@@ -1,0 +1,8 @@
+mujoco>=3.2.3
+numpy
+torch
+pyyaml
+pillow
+imageio
+imageio-ffmpeg
+google-genai>=1.40

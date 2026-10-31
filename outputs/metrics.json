@@ -1,51 +1,51 @@
 {
   "planner": "gemini",
-  "seed": 0,
+  "seed": 6,
   "missions": [
     {
       "instruction": "部品棚で部品を受け取ってから、検査台に運んでください。",
-      "latency_s": 4.702936172485352,
+      "latency_s": 4.813368082046509,
       "goals": [
         {
           "label": "parts shelf",
           "station": "parts",
           "result": "arrived",
-          "time_s": 11.1,
-          "perception_err_m": 0.004,
-          "arrival_err_m": 0.099,
+          "time_s": 14.1,
+          "perception_err_m": 0.016,
+          "arrival_err_m": 0.127,
           "on_mat": true
         },
         {
           "label": "inspection station",
           "station": "inspect",
           "result": "arrived",
-          "time_s": 7.7,
-          "perception_err_m": 0.008,
-          "arrival_err_m": 0.124,
+          "time_s": 9.9,
+          "perception_err_m": 0.006,
+          "arrival_err_m": 0.105,
           "on_mat": true
         }
       ]
     },
     {
       "instruction": "次は出荷エリアに届けて、最後は充電ステーションに戻ってください。",
-      "latency_s": 4.491352081298828,
+      "latency_s": 5.267564058303833,
       "goals": [
         {
           "label": "shipping area",
           "station": "ship",
           "result": "arrived",
-          "time_s": 8.9,
-          "perception_err_m": 0.002,
-          "arrival_err_m": 0.125,
+          "time_s": 8.5,
+          "perception_err_m": 0.001,
+          "arrival_err_m": 0.141,
           "on_mat": true
         },
         {
           "label": "charging station",
           "station": "charge",
           "result": "arrived",
-          "time_s": 16.0,
-          "perception_err_m": 0.007,
-          "arrival_err_m": 0.128,
+          "time_s": 16.7,
+          "perception_err_m": 0.002,
+          "arrival_err_m": 0.129,
           "on_mat": true
         }
       ]
@@ -53,5 +53,5 @@
   ],
   "collisions_frames": 0,
   "hazard_frames": 0,
-  "sim_time_s": 50.8
+  "sim_time_s": 56.2
 }

@@ -4,53 +4,54 @@
   "missions": [
     {
       "instruction": "部品棚で部品を受け取ってから、検査台に運んでください。",
-      "latency_s": 8.358336925506592,
+      "latency_s": 4.702936172485352,
       "goals": [
         {
           "label": "parts shelf",
           "station": "parts",
           "result": "arrived",
-          "time_s": 8.6,
-          "perception_err_m": 0.01,
-          "arrival_err_m": 0.118,
+          "time_s": 11.1,
+          "perception_err_m": 0.004,
+          "arrival_err_m": 0.099,
           "on_mat": true
         },
         {
           "label": "inspection station",
           "station": "inspect",
           "result": "arrived",
-          "time_s": 9.6,
+          "time_s": 7.7,
           "perception_err_m": 0.008,
-          "arrival_err_m": 0.126,
+          "arrival_err_m": 0.124,
           "on_mat": true
         }
       ]
     },
     {
       "instruction": "次は出荷エリアに届けて、最後は充電ステーションに戻ってください。",
-      "latency_s": 8.777028799057007,
+      "latency_s": 4.491352081298828,
       "goals": [
         {
           "label": "shipping area",
           "station": "ship",
           "result": "arrived",
           "time_s": 8.9,
-          "perception_err_m": 0.008,
-          "arrival_err_m": 0.131,
+          "perception_err_m": 0.002,
+          "arrival_err_m": 0.125,
           "on_mat": true
         },
         {
           "label": "charging station",
           "station": "charge",
           "result": "arrived",
-          "time_s": 15.9,
+          "time_s": 16.0,
           "perception_err_m": 0.007,
-          "arrival_err_m": 0.122,
+          "arrival_err_m": 0.128,
           "on_mat": true
         }
       ]
     }
   ],
   "collisions_frames": 0,
-  "sim_time_s": 50.0
+  "hazard_frames": 0,
+  "sim_time_s": 50.8
 }

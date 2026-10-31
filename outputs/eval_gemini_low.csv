@@ -1,0 +1,11 @@
+all_on_mat,arrival_err_m,collision_frames,hazard_detected,hazard_steps,latency_s,n_goals,n_obstacles_detected,n_obstacles_true,order_correct,perception_err_m,seed,sim_time_s,status,success
+True,0.114,0,True,0,6.37,3,5,5,True,0.007,100,45.9,ok,True
+True,0.118,0,True,0,5.26,3,5,5,True,0.003,101,43.1,ok,True
+True,0.106,0,True,0,4.91,3,5,5,True,0.002,102,24.2,ok,True
+True,0.123,0,True,0,7.85,3,5,5,True,0.007,103,32.7,ok,True
+True,0.119,0,True,0,6.09,3,4,4,True,0.004,104,40.1,ok,True
+True,0.119,0,True,0,4.6,3,4,4,True,0.004,105,32.7,ok,True
+True,0.121,0,True,0,3.98,3,4,4,True,0.004,106,30.0,ok,True
+True,0.123,0,True,0,5.12,3,4,4,True,0.002,107,41.5,ok,True
+True,0.115,0,True,0,4.91,3,4,4,True,0.009,108,23.8,ok,True
+True,0.114,0,True,0,4.85,3,5,5,True,0.006,109,35.2,ok,True

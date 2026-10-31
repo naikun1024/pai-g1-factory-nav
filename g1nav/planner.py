@@ -37,6 +37,7 @@ class Plan:
     goals: list
     obstacles: list = field(default_factory=list)  # 各要素: (xmin, ymin, xmax, ymax) [m]
     obstacle_boxes_px: list = field(default_factory=list)  # 表示用 [ymin,xmin,ymax,xmax](0-1000)
+    obstacle_labels: list = field(default_factory=list)    # "pallet" / "hazard zone" など   ← 追加
     raw: str = ""
     latency_s: float = 0.0
     source: str = ""
@@ -46,17 +47,19 @@ class Plan:
 PROMPT = """You are the task planner of a humanoid robot (Unitree G1) in a factory.
 The image is a top-down view of the factory floor. Colored square mats are stations:
 blue = parts shelf, green = inspection station, yellow = shipping area, purple = charging station.
-Brown boxes are pallets (obstacles). The robot is the small gray figure near the left edge.
+Brown boxes are pallets (obstacles). A yellow-and-black striped area on the floor is a hazard zone
+where human workers are present: the robot must NEVER enter it, so treat it as an obstacle too.
+The robot is the small gray figure near the left edge.
 
 Operator instruction (Japanese): "{instruction}"
 
 1. Decide which stations the robot must visit, in order, to follow the instruction.
 2. Point to the CENTER of each of those station mats.
-3. Detect every brown pallet with a 2D bounding box.
+3. Detect every brown pallet AND every striped hazard zone with a 2D bounding box.
 
 Return ONLY JSON in this format:
 {{"goals": [{{"label": "<station name>", "point": [y, x]}}, ...],
-  "obstacles": [{{"label": "pallet", "box_2d": [ymin, xmin, ymax, xmax]}}, ...]}}
+    "obstacles": [{{"label": "pallet" or "hazard zone", "box_2d": [ymin, xmin, ymax, xmax]}}, ...]}}
 Points and boxes are normalized to 0-1000, with [y, x] order.
 """
 
@@ -92,14 +95,15 @@ def plan_with_gemini(image: np.ndarray, instruction: str, cam, thinking_level="l
     latency = time.time() - t0
     data = _parse_json(resp.text)
     goals = [Goal(g["label"], cam.norm_to_floor(g["point"]), tuple(g["point"])) for g in data.get("goals", [])]
-    obstacles, boxes = [], []
+    obstacles, boxes, labels = [], [], []
     for o in data.get("obstacles", []):
+        labels.append(str(o.get("label", "")))
         ymin, xmin, ymax, xmax = o["box_2d"]
         p1 = cam.norm_to_floor((ymin, xmin))
         p2 = cam.norm_to_floor((ymax, xmax))
         obstacles.append((min(p1[0], p2[0]), min(p1[1], p2[1]), max(p1[0], p2[0]), max(p1[1], p2[1])))
         boxes.append(o["box_2d"])
-    return Plan(goals, obstacles, boxes, raw=resp.text, latency_s=latency, source=GEMINI_MODEL)
+    return Plan(goals, obstacles, boxes, labels, raw=resp.text, latency_s=latency, source=GEMINI_MODEL)
 
 
 # ---------------------------------------------------------------- Mock(API なしの動作確認用)
@@ -127,7 +131,7 @@ def plan_mock(instruction: str, stations, obstacles) -> Plan:
         corners = np.array([[sx * o.half[0], sy * o.half[1]] for sx in (-1, 1) for sy in (-1, 1)])
         rot = corners @ np.array([[c, s], [-s, c]]) + np.array(o.xy)
         obs.append((*rot.min(0), *rot.max(0)))
-    return Plan(goals, obs, source="mock(真値)")
+    return Plan(goals, obs, obstacle_labels=[o.kind for o in obstacles], source="mock(真値)")
 
 
 # ---------------------------------------------------------------- A* 経路計画

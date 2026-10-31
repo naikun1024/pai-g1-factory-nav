@@ -45,7 +45,8 @@ class Obstacle:
     xy: tuple
     half: tuple  # (hx, hy, hz)
     yaw: float
-
+    kind: str = "obstacle"  # "obstacle" or "hazard"
+    kind: str = "pallet"
 
 def random_layout(rng: np.random.Generator, n_obstacles=4):
     """ステーションと障害物(パレット)をランダムに配置する。"""
@@ -66,8 +67,22 @@ def random_layout(rng: np.random.Generator, n_obstacles=4):
         if any(np.hypot(xy[0] - o.xy[0], xy[1] - o.xy[1]) < r + max(o.half[:2]) * 1.42 + 0.8 for o in obstacles):
             continue
         obstacles.append(Obstacle(f"pallet{len(obstacles)}", xy, half, rng.uniform(0, np.pi)))
+    for _ in range(5000):
+        xy = (rng.uniform(1.2, 4.4), rng.uniform(-1.8, 1.8))
+        half = (0.45, 0.35, 0.003)
+        r = np.hypot(half[0], half[1])
+        if any(np.hypot(xy[0] - s.xy[0], xy[1] - s.xy[1]) < r + MAT_HALF + 0.2 for s in stations):
+            continue
+        if any(np.hypot(xy[0] - o.xy[0], xy[1] - o.xy[1]) < r + max(o.half[:2]) * 1.42 + 0.2 for o in obstacles):
+            continue
+        obstacles.append(Obstacle("hazard0", xy, half, 0.0, kind="hazard"))
+        break
     return stations, obstacles
 
+def in_hazard(xy, obstacles):
+    """位置 xy が立入禁止ゾーンの中か(ゾーンは回転なしの長方形)。"""
+    return any(o.kind == "hazard" and abs(xy[0] - o.xy[0]) < o.half[0] and abs(xy[1] - o.xy[1]) < o.half[1]
+               for o in obstacles)
 
 def lookat_xyaxes(pos, target, up=(0, 0, 1)):
     pos, target, up = map(np.asarray, (pos, target, up))
@@ -89,6 +104,20 @@ def build_xml(stations, obstacles) -> str:
             f"</body>"
         )
     for o in obstacles:
+        if o.kind == "hazard":  # 床に描くだけ(ぶつからない)。黄と黒のしま模様
+            hx, hy = o.half[0], o.half[1]
+            n = 8
+            w = 2 * hx / n
+            stripes = "".join(
+                f'<geom type="box" size="{w / 2} {hy} 0.002" pos="{-hx + w * (i + 0.5)} 0 0.005" '
+                f'rgba="{"0.95 0.80 0.10 1" if i % 2 == 0 else "0.10 0.10 0.10 1"}" contype="0" conaffinity="0"/>'
+                for i in range(n))
+            items.append(
+                f'<body name="{o.name}" pos="{o.xy[0]} {o.xy[1]} 0">'
+                f'<geom name="{o.name}_geom" type="box" size="{hx} {hy} 0.002" pos="0 0 0.002" '
+                f'rgba="0.95 0.80 0.10 1" contype="0" conaffinity="0"/>{stripes}</body>'
+            )
+            continue
         q = (np.cos(o.yaw / 2), 0, 0, np.sin(o.yaw / 2))
         rgba = " ".join(map(str, OBSTACLE_RGBA))
         items.append(

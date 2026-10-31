@@ -20,7 +20,7 @@ from g1nav import viz
 from g1nav.locomotion import G1Walker
 from g1nav.navigator import WaypointFollower
 from g1nav.planner import GridPlanner, plan_mock, plan_with_gemini
-from g1nav.scene import STATIONS, random_layout, write_scene
+from g1nav.scene import STATIONS, in_hazard, random_layout, write_scene
 from g1nav.vision import TopCamera
 
 DEFAULT_INSTRUCTIONS = [
@@ -79,9 +79,11 @@ def main():
     track.type = mujoco.mjtCamera.mjCAMERA_TRACKING
     track.trackbodyid = model.body("pelvis").id
     track.distance, track.elevation, track.azimuth = 3.4, -20.0, -150.0
-    hits = {"n": 0}
+    hits = {"n": 0, "hazard": 0}
 
     def on_frame():
+        if in_hazard(walker.pose()[:2], obstacles):
+            hits["hazard"] += 1
         # 障害物との接触チェック(評価用)
         for i in range(data.ncon):
             c = data.contact[i]
@@ -191,6 +193,7 @@ def main():
         metrics["missions"].append(mres)
 
     metrics["collisions_frames"] = hits["n"]
+    metrics["hazard_frames"] = hits["hazard"]
     metrics["sim_time_s"] = round(data.time, 1)
     with open("outputs/metrics.json", "w") as f:
         json.dump(metrics, f, ensure_ascii=False, indent=2)
@@ -202,6 +205,7 @@ def main():
              f"到着誤差(平均):{np.mean([g['arrival_err_m'] for g in goals]):.2f} m" if goals else "",
              f"AI の位置認識誤差(平均):{np.mean([g['perception_err_m'] for g in goals]):.2f} m" if goals else "",
              f"障害物との接触:{'なし' if hits['n'] == 0 else str(hits['n']) + ' フレーム'}",
+             f"立入禁止ゾーンへの侵入:{'なし' if hits['hazard'] == 0 else str(hits['hazard']) + ' フレーム'}",
              f"シミュレーション時間:{data.time:.0f} 秒"]
     hold(viz.card(W, H, "結果", lines, sub=f"レイアウト seed={args.seed} / planner={args.planner}"), 5)
 

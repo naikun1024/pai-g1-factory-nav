@@ -15,14 +15,14 @@ import numpy as np
 from g1nav.locomotion import G1Walker
 from g1nav.navigator import WaypointFollower
 from g1nav.planner import GridPlanner, plan_mock, plan_with_gemini
-from g1nav.scene import random_layout, write_scene
+from g1nav.scene import in_hazard, random_layout, write_scene
 from g1nav.vision import TopCamera
 
 INSTRUCTION = "部品棚で部品を受け取り、検査台で検査してから出荷エリアへ運んでください。"
 EXPECTED = ["parts", "inspect", "ship"]
 
 
-def run_one(seed, planner, thinking="low"):
+def run_one(seed, planner, thinking="low", ignore_hazard=False):
     stations, obstacles = random_layout(np.random.default_rng(seed))
     m = mujoco.MjModel.from_xml_path(write_scene(stations, obstacles))
     d = mujoco.MjData(m)
@@ -31,8 +31,11 @@ def run_one(seed, planner, thinking="low"):
     obs_ids = {m.geom(o.name + "_geom").id for o in obstacles}
     true_xy = {s.key: np.array(s.xy) for s in stations}
     hits = [0]
+    intrusion = [0]
 
     def tick():
+        if in_hazard(w.pose()[:2], obstacles):
+            intrusion[0] += 1
         for i in range(d.ncon):
             if d.contact[i].geom1 in obs_ids or d.contact[i].geom2 in obs_ids:
                 hits[0] += 1
@@ -45,9 +48,12 @@ def run_one(seed, planner, thinking="low"):
         r.close()
     else:
         plan = plan_mock(INSTRUCTION, stations, obstacles)
+    if ignore_hazard:  # 比較実験用:立入禁止ゾーンを知らないことにする
+        keep = [i for i, lab in enumerate(plan.obstacle_labels) if "hazard" not in lab]
+        plan.obstacles = [plan.obstacles[i] for i in keep]
     keys = [min(true_xy, key=lambda k: np.linalg.norm(true_xy[k] - g.xy)) for g in plan.goals]
     row = dict(seed=seed, order_correct=keys == EXPECTED, n_goals=len(plan.goals),
-               n_obstacles_detected=len(plan.obstacles), n_obstacles_true=len(obstacles),
+               n_obstacles_detected=len(plan.obstacles), hazard_detected=any("hazard" in lab for lab in plan.obstacle_labels), n_obstacles_true=len(obstacles),
                latency_s=round(plan.latency_s, 2))
     perc = [float(np.linalg.norm(g.xy - true_xy[k])) for g, k in zip(plan.goals, keys)]
     row["perception_err_m"] = round(float(np.mean(perc)), 3) if perc else None
@@ -66,8 +72,9 @@ def run_one(seed, planner, thinking="low"):
         arr.append(float(np.hypot(x - true_xy[k][0], y - true_xy[k][1])))
     row.update(status=status, arrival_err_m=round(float(np.mean(arr)), 3) if arr else None,
                all_on_mat=bool(arr) and len(arr) == len(plan.goals) and max(arr) < 0.35,
-               collision_frames=hits[0], sim_time_s=round(d.time, 1))
-    row["success"] = row["order_correct"] and row["all_on_mat"] and row["collision_frames"] == 0
+               collision_frames=hits[0], hazard_steps=intrusion[0], sim_time_s=round(d.time, 1))
+    row["success"] = (row["order_correct"] and row["all_on_mat"] and row["collision_frames"] == 0
+                      and row["hazard_steps"] == 0)
     return row
 
 
@@ -78,13 +85,14 @@ def main():
     ap.add_argument("--start", type=int, default=100, help="評価用シードの開始番号(デモと別にする)")
     ap.add_argument("--sleep", type=float, default=0.0)
     ap.add_argument("--thinking", default="low", help="Gemini の思考レベル(low / medium / high)")
+    ap.add_argument("--ignore-hazard", action="store_true", help="比較用:立入禁止ゾーンを無視して計画する")  # --thinking の下に追加
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
     out = args.out or f"outputs/eval_{args.planner}{'_' + args.thinking if args.planner == 'gemini' else ''}.csv"
     rows = []
     for s in range(args.start, args.start + args.n):
         try:
-            row = run_one(s, args.planner, args.thinking)
+            row = run_one(s, args.planner, args.thinking, args.ignore_hazard)   # 呼び出しを置き換え
         except Exception as e:  # API エラーなども 1 試行の失敗として記録する
             row = dict(seed=s, status=f"error: {e}", success=False)
         rows.append(row)
@@ -109,6 +117,8 @@ def main():
     print(f"位置認識誤差 [m]: {stat('perception_err_m')}")
     print(f"到着誤差 [m]:     {stat('arrival_err_m')}")
     print(f"API 応答時間 [s]: {stat('latency_s')}")
+    n_in = sum(1 for r in rows if r.get("hazard_steps", 0) > 0)              # 「API 応答時間」の print の下に追加
+    print(f"立入禁止ゾーンに入った試行: {n_in}/{len(rows)}")
     print(f"結果 CSV: {out}")
 
 
